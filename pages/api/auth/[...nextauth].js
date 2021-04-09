@@ -1,114 +1,128 @@
 import NextAuth from "next-auth"
 import Providers from "next-auth/providers"
+import axios from 'axios'
 
-// For more information on each option (and a full list of options) go to
-// https://next-auth.js.org/configuration/options
+function formatDate(date) {
+  const options = {
+    year: 'numeric', month: 'numeric', day: 'numeric',
+    hour: 'numeric', minute: 'numeric', second: 'numeric',
+    hour12: false,
+    timeZone: 'America/Los_Angeles'
+  };
+
+  return new Intl.DateTimeFormat('en-us', options).format(new Date(date))
+}
+
+async function refreshAccessToken(token) {
+  try {
+    console.log('----------------------');
+    console.log('ATTEMPTING TO REFRESH ACCESS TOKEN!!');
+    const formData = [
+      'client_id=interactive.public.short',
+      'grant_type=refresh_token',
+      `refresh_token=${token.refreshToken}`
+    ];
+
+    const { data: refreshedTokens } = await axios.post(
+      'https://demo.identityserver.io/connect/token',
+      formData.join('&'),
+      {
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+      }
+    );
+    console.log('refreshedTokens', refreshedTokens);
+
+
+    const newAccessTokenExpires = Date.now() + refreshedTokens.expires_in * 1000;
+    const newToken = {
+      ...token,
+      accessToken: refreshedTokens.access_token,
+      accessTokenExpires: newAccessTokenExpires,
+      // Fall back to old refresh token
+      refreshToken: refreshedTokens.refresh_token || token.refreshToken
+    }
+    console.log('newToken', newToken);
+    console.log('new access token expires: ', newAccessTokenExpires, formatDate(newAccessTokenExpires));
+    console.log('----------------------');
+
+    return newToken;
+  } catch (error) {
+    console.log('----------------------');
+    console.error('REFRESH ACCESS TOKEN ERROR');
+    console.error('error status: ', error.response.status);
+    console.error('error data: ', error.response.data);
+    console.log('----------------------');
+
+    return {
+      ...token,
+      error: 'RefreshAccessTokenError'
+    };
+  }
+}
+
 export default NextAuth({
-  // https://next-auth.js.org/configuration/providers
   providers: [
-    Providers.Email({
-      server: process.env.EMAIL_SERVER,
-      from: process.env.EMAIL_FROM,
-    }),
-    Providers.Apple({
-      clientId: process.env.APPLE_ID,
-      clientSecret: {
-        appleId: process.env.APPLE_ID,
-        teamId: process.env.APPLE_TEAM_ID,
-        privateKey: process.env.APPLE_PRIVATE_KEY,
-        keyId: process.env.APPLE_KEY_ID,
-      },
-    }),
-    Providers.Auth0({
-      clientId: process.env.AUTH0_ID,
-      clientSecret: process.env.AUTH0_SECRET,
-      domain: process.env.AUTH0_DOMAIN,
-    }),
-    Providers.Facebook({
-      clientId: process.env.FACEBOOK_ID,
-      clientSecret: process.env.FACEBOOK_SECRET,
-    }),
-    Providers.GitHub({
-      clientId: process.env.GITHUB_ID,
-      clientSecret: process.env.GITHUB_SECRET,
-    }),
-    Providers.Google({
-      clientId: process.env.GOOGLE_ID,
-      clientSecret: process.env.GOOGLE_SECRET,
-    }),
-    Providers.Twitter({
-      clientId: process.env.TWITTER_ID,
-      clientSecret: process.env.TWITTER_SECRET,
-    }),
+    Providers.IdentityServer4({
+      id: 'demo',
+      name: 'demo',
+      type: 'oauth',
+      version: '2.0',
+      scope: 'openid profile email api offline_access',
+      domain: 'demo.identityserver.io',
+      clientId: 'interactive.public.short',
+      protection: 'pkce'
+    })
   ],
-  // Database optional. MySQL, Maria DB, Postgres and MongoDB are supported.
-  // https://next-auth.js.org/configuration/databases
-  //
-  // Notes:
-  // * You must install an appropriate node_module for your database
-  // * The Email provider requires a database (OAuth providers do not)
-  database: process.env.DATABASE_URL,
-
-  // The secret should be set to a reasonably long random string.
-  // It is used to sign cookies and to sign and encrypt JSON Web Tokens, unless
-  // a separate secret is defined explicitly for encrypting the JWT.
+  
   secret: process.env.SECRET,
-
-  session: {
-    // Use JSON Web Tokens for session instead of database sessions.
-    // This option can be used with or without a database for users/accounts.
-    // Note: `jwt` is automatically set to `true` if no database is specified.
-    jwt: true,
-
-    // Seconds - How long until an idle session expires and is no longer valid.
-    // maxAge: 30 * 24 * 60 * 60, // 30 days
-
-    // Seconds - Throttle how frequently to write to database to extend a session.
-    // Use it to limit write operations. Set to 0 to always update the database.
-    // Note: This option is ignored if using JSON Web Tokens
-    // updateAge: 24 * 60 * 60, // 24 hours
-  },
-
-  // JSON Web tokens are only used for sessions if the `jwt: true` session
-  // option is set - or by default if no database is specified.
-  // https://next-auth.js.org/configuration/options#jwt
   jwt: {
-    // A secret to use for key generation (you should set this explicitly)
-    // secret: 'INp8IvdIyeMcoGAgFGoA61DdBglwwSqnXJZkgz8PSnw',
-    // Set to true to use encryption (default: false)
-    // encryption: true,
-    // You can define your own encode/decode functions for signing and encryption
-    // if you want to override the default behaviour.
-    // encode: async ({ secret, token, maxAge }) => {},
-    // decode: async ({ secret, token, maxAge }) => {},
+    secret: process.env.JWT_SECRET,
+    encryption: true
   },
 
-  // You can define custom pages to override the built-in ones. These will be regular Next.js pages
-  // so ensure that they are placed outside of the '/api' folder, e.g. signIn: '/auth/mycustom-signin'
-  // The routes shown here are the default URLs that will be used when a custom
-  // pages is not specified for that route.
-  // https://next-auth.js.org/configuration/pages
-  pages: {
-    // signIn: '/auth/signin',  // Displays signin buttons
-    // signOut: '/auth/signout', // Displays form with sign out button
-    // error: '/auth/error', // Error code passed in query string as ?error=
-    // verifyRequest: '/auth/verify-request', // Used for check email page
-    // newUser: null // If set, new users will be directed here on first sign in
-  },
-
-  // Callbacks are asynchronous functions you can use to control what happens
-  // when an action is performed.
-  // https://next-auth.js.org/configuration/callbacks
+  
   callbacks: {
-    // async signIn(user, account, profile) { return true },
-    // async redirect(url, baseUrl) { return baseUrl },
-    // async session(session, user) { return session },
-    // async jwt(token, user, account, profile, isNewUser) { return token }
-  },
+    jwt: async (token, user, account, profile) => {
+      // Initial sign in
+      if (account && user) {
+        return {
+          accessToken: account.accessToken,
+          accessTokenExpires: Date.now() + account.expires_in * 1000,
+          refreshToken: account.refresh_token,
+          user
+        };
+      }
 
-  // Events are useful for logging
-  // https://next-auth.js.org/configuration/events
-  events: {},
+      // Return previous token if the access token has not expired yet
+      console.log('----------------------');
+      console.log('Date.now()', Date.now(), formatDate(new Date(Date.now())));
+      console.log('token.accessTokenExpires', token.accessTokenExpires, formatDate(new Date(token.accessTokenExpires)));
+      console.log(
+        'Date.now() < token.accessTokenExpires?',
+        Date.now() < token.accessTokenExpires
+      );
+
+      if (Date.now() < token.accessTokenExpires) {
+        console.log('ACCESS TOKEN STILL VALID!');
+        return token;
+      }
+      console.log('----------------------');
+
+      // Access token has expired, try to update it
+      return refreshAccessToken(token);
+    },
+    session: async (session, token) => {
+      console.log('----------------------');
+      console.log('CHECKING TOKEN FROM SESSION');
+      console.log('token', token);
+      if (token) {
+        session.user = token.user;
+        session.error = token.error;
+      }
+      console.log('----------------------');
+      return session;
+    }
+  },
 
   // Enable debug messages in the console if you are having problems
   debug: false,

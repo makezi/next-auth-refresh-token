@@ -1,122 +1,38 @@
-# NextAuth.js Example
+# next-auth-refresh-token
 
-[next-auth-example.now.sh](https://next-auth-example.now.sh)
+[Relevant Discussion](https://github.com/nextauthjs/next-auth/discussions/1455)
 
-## About this project
+This repo is to reproduce the error in which rotating refresh tokens do not
+seem to update the `accessTokenExpires` value correctly (IdentityServer4).
 
-This is an example of how to use [NextAuth.js](https://next-auth.js.org) library to add authentication to a [Next.js](https://nextjs.org) application.
+## Getting Started
 
-## About NextAuth.js
-
-NextAuth.js is an easy to implement, full-stack (client/server) open source authentication library designed for [Next.js](https://nextjs.org) and [Serverless](https://now.sh).
-
-Go to [next-auth.js.org](https://next-auth.js.org) for more information and documentation.
-
-*NextAuth.js is not associated with Vercel or Next.js.*
-
-## Getting started
-
-### 1. Clone the repository and install dependancies
+Login to the demo IdentityServer with the following credentials:
 
 ```
-git clone https://github.com/nextauthjs/next-auth-example.git
-cd next-auth-example
-npm i
+username: alice
+password: alice
 ```
 
-### 2. Configure your local environment
+## To Reproduce
 
-Copy the .env.local.example file in this directory to .env.local (which will be ignored by Git):
+1. Go to `server` route.
+2. Open terminal to see server logs
 
-```
-cp .env.local.example .env.local
-```
+![Access Token Valid](./public/static/images/access-token-valid.png)
 
-Add details for one or more providers (e.g. Google, Twitter, GitHub, Email, etc).
+3. The access token expires in 75 seconds, so click `server` route any point afterwards
+to trigger a refresh token attempt.
 
-#### Database configuration
+![Refresh Token Attempt](./public/static/images/refresh-token-attempt.png)
 
-A database is needed to persist user accounts and to support email sign in, but you can still use NextAuth.js for authentication without one by using OAuth for authentication. If you do not specify a database, JSON Web Tokens will be enabled by default.
+**Pay attention to the `accessTokenExpires` value from the token retrieved - it
+equals to the access token expires value we set from the `refreshAccessToken` function.**
 
-You can skip configuring a database and come back to it later if you want.
+4. If you now click `server` again, it will attempt to trigger a refresh token
+retrieval again! You'll face an `invalid_grant` error.
 
-When configuring your database you should also install an appropriate node_module.
+![Refresh Token Attempt](./public/static/images/refresh-token-attempt-2.png)
 
-* **SQLite**
-
-  Install module:
-  `npm i sqlite3`
-
-  Database URI:
-  `sqlite://localhost/:memory:?synchronize=true`
-
-* **MySQL**
-
-  Install module:
-  `npm i mysql`
-
-  Database URI:
-  `mysql://username:password@127.0.0.1:3306/database_name?synchronize=true`
-
-* **Postgres**
-
-  Install module:
-  `npm i pg`
-
-  Database URI:
-  `postgres://username:password@127.0.0.1:5432/database_name?synchronize=true`
-
-* **MongoDB**
-
-  Install module:
-  `npm i mongodb`
-
-  Database URI:
-  `mongodb://username:password@127.0.0.1:27017/database_name?synchronize=true`
-
-Notes:
-
-* The example .env specifies an in-memory SQLite database that does not persist data.
-* SQLite is suitable for development / testing but not for production.
-* The option `?synchronize=true` automatically syncs schema changes to the database. It should not be used in production as may result in data loss if there are changes to the schema or to NextAuth.js
-* You can also specify a [TypeORM connection object](https://typeorm.io/#/connection-options) in `pages/api/auth/[...nextauth].js` instead of a database URL / connection string.
-
-### 3. Configure authentication providers
-
-* Review and update options in `pages/api/auth/[...nextauth].js` as needed.
-
-* When setting up OAuth, in the developer admin page for each of your OAuth services, you should configure the callback URL to use a callback path of `{server}/api/auth/callback/{provider}`.
-
-  e.g. For Google OAuth you would use: `http://localhost:3000/api/auth/callback/google`
-
-  A list of configured providers and their callback URLs is available from the endpoint `/api/auth/providers`. You can find more information at https://next-auth.js.org/configuration/providers
-
-* You can also choose to specify an SMTP server for passwordless sign in via email.
-
-### 4. Start the application
-
-To run your site locally, use:
-
-```
-npm run dev
-```
-
-To run it it production mode, use:
-
-```
-npm build
-npm start
-```
-
-### 5. Configuring for production
-
-You must set the NEXTAUTH_URL environment variable with the URL of your site, before deploying to production.
-
-e.g. `NEXTAUTH_URL=https://example.com`
-
-To do this in on Vercel, you can use the [Vercel project dashboard](https://vercel.com/dashboard) or the `vc env` command:
-
-    vc env add NEXTAUTH_URL production
-
-Be sure to also set environment variables for the Client ID and Client Secret values for all your authentication providers.
+**Notice `accessTokenExpires`? It's reverted back to the previous expire time**
 

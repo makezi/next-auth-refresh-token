@@ -12,7 +12,7 @@ export default function Page () {
     const fetchData = async () => {
       const res = await fetch('/api/examples/protected')
       const json = await res.json()
-      if (json.content) { setContent(json.content) }
+      if (json) { setContent(json) }
     }
     fetchData()
   },[session])
@@ -27,7 +27,8 @@ export default function Page () {
   return (
     <Layout>
       <h1>Protected Page</h1>
-      <p><strong>{content || "\u00a0"}</strong></p>
+      {session?.error ? <p>{session.error}</p> : null}
+      {content && !session?.error ? <pre>{JSON.stringify(content, null, 2)}</pre> : null}
     </Layout>
   )
 }
