@@ -92,9 +92,11 @@ export default NextAuth({
           user
         };
       }
-
+      
       // Return previous token if the access token has not expired yet
       console.log('----------------------');
+      console.log("CHECKING TOKEN IN JWT");
+      console.log('token', token);
       console.log('Date.now()', Date.now(), formatDate(new Date(Date.now())));
       console.log('token.accessTokenExpires', token.accessTokenExpires, formatDate(new Date(token.accessTokenExpires)));
       console.log(
@@ -109,7 +111,7 @@ export default NextAuth({
       console.log('----------------------');
 
       // Access token has expired, try to update it
-      return refreshAccessToken(token);
+      return await refreshAccessToken(token);
     },
     session: async (session, token) => {
       console.log('----------------------');
