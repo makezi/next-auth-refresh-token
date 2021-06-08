@@ -21,7 +21,8 @@ export default function App ({ Component, pageProps }) {
         //
         // Note: If a session has expired when keep alive is triggered, all open
         // windows / tabs will be updated to reflect the user is signed out.
-        keepAlive: 0
+        keepAlive: 0,
+        disableSessionEventBroadcast: true
       }}
       session={pageProps.session} >
       <Component {...pageProps} />
