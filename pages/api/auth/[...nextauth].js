@@ -2,61 +2,48 @@ import NextAuth from "next-auth"
 import Providers from "next-auth/providers"
 import axios from 'axios'
 
-function formatDate(date) {
-  const options = {
-    year: 'numeric', month: 'numeric', day: 'numeric',
-    hour: 'numeric', minute: 'numeric', second: 'numeric',
-    hour12: false,
-    timeZone: 'America/Los_Angeles'
-  };
-
-  return new Intl.DateTimeFormat('en-us', options).format(new Date(date))
-}
-
 async function refreshAccessToken(token) {
+  const { refreshToken } = token
+  if (!refreshToken) {
+    return {
+      ...token,
+      error: 'RefreshAccessTokenError',
+    }
+  }
   try {
-    console.log('----------------------');
     console.log('ATTEMPTING TO REFRESH ACCESS TOKEN!!');
-    const formData = [
-      'client_id=interactive.public.short',
-      'grant_type=refresh_token',
-      `refresh_token=${token.refreshToken}`
-    ];
 
-    const { data: refreshedTokens } = await axios.post(
-      'https://demo.identityserver.io/connect/token',
-      formData.join('&'),
-      {
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+    const params = new URLSearchParams();
+    params.append('client_id', 'interactive.public.short');
+    params.append('grant_type', 'refresh_token');
+    params.append('refresh_token',token.refreshToken )
+
+    const response = await axios.post('https://demo.identityserver.io/connect/token', params, {
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
       }
-    );
+    })
+
+    const refreshedTokens = response.data;
     console.log('refreshedTokens', refreshedTokens);
 
-
-    const newAccessTokenExpires = Date.now() + refreshedTokens.expires_in * 1000;
-    const newToken = {
+    const updatedToken = {
       ...token,
       accessToken: refreshedTokens.access_token,
-      accessTokenExpires: newAccessTokenExpires,
-      // Fall back to old refresh token
-      refreshToken: refreshedTokens.refresh_token || token.refreshToken
+      expiresAt: Date.now() + refreshedTokens.expires_in * 1000,
+      refreshToken: refreshedTokens.refresh_token ?? token.refreshToken, // Fall back to old refresh token
     }
-    console.log('newToken', newToken);
-    console.log('new access token expires: ', newAccessTokenExpires, formatDate(newAccessTokenExpires));
-    console.log('----------------------');
-
-    return newToken;
+    delete updatedToken.error
+    return updatedToken
   } catch (error) {
-    console.log('----------------------');
     console.error('REFRESH ACCESS TOKEN ERROR');
     console.error('error status: ', error.response.status);
     console.error('error data: ', error.response.data);
-    console.log('----------------------');
 
     return {
       ...token,
-      error: 'RefreshAccessTokenError'
-    };
+      error: 'RefreshAccessTokenError',
+    }
   }
 }
 
@@ -79,51 +66,46 @@ export default NextAuth({
     secret: process.env.JWT_SECRET,
     encryption: true
   },
-
-  
   callbacks: {
-    jwt: async (token, user, account, profile) => {
+    async session(session, token) {
+
+      const updatedSession = {
+        ...session,
+      }
+      if (token?.error) {
+        updatedSession.error = token.error
+      }
+      return updatedSession
+    },
+    async jwt(token, user, account, profile) {
       // Initial sign in
-      if (account && user) {
-        return {
-          accessToken: account.accessToken,
-          accessTokenExpires: Date.now() + account.expires_in * 1000,
-          refreshToken: account.refresh_token,
-          user
-        };
+      if (account && user && profile) {
+        const tokenWithCredentials = {
+          ...token,
+        }
+        if (account.access_token) {
+          tokenWithCredentials.accessToken = account.access_token
+        }
+        if (account.refresh_token) {
+          tokenWithCredentials.refreshToken = account.refresh_token
+        }
+        if (account.expires_in) {
+          tokenWithCredentials.expiresAt =
+            Date.now() + account.expires_in * 1000
+        }
+        return tokenWithCredentials
       }
 
       // Return previous token if the access token has not expired yet
-      console.log('----------------------');
-      console.log('Date.now()', Date.now(), formatDate(new Date(Date.now())));
-      console.log('token.accessTokenExpires', token.accessTokenExpires, formatDate(new Date(token.accessTokenExpires)));
-      console.log(
-        'Date.now() < token.accessTokenExpires?',
-        Date.now() < token.accessTokenExpires
-      );
-
-      if (Date.now() < token.accessTokenExpires) {
-        console.log('ACCESS TOKEN STILL VALID!');
-        return token;
+      if (Date.now() < token.expiresAt) {
+        return token
       }
-      console.log('----------------------');
 
       // Access token has expired, try to update it
-      return refreshAccessToken(token);
+      return refreshAccessToken(token)
     },
-    session: async (session, token) => {
-      console.log('----------------------');
-      console.log('CHECKING TOKEN FROM SESSION');
-      console.log('token', token);
-      if (token) {
-        session.user = token.user;
-        session.error = token.error;
-      }
-      console.log('----------------------');
-      return session;
-    }
   },
-
-  // Enable debug messages in the console if you are having problems
-  debug: false,
+  session: {
+    jwt: true
+  }
 })

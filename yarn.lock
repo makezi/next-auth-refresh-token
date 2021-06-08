@@ -1767,7 +1767,7 @@ needle@^2.2.1:
     iconv-lite "^0.4.4"
     sax "^1.2.4"
 
-next-auth@latest:
+next-auth@^3.14.0:
   version "3.14.0"
   resolved "https://registry.yarnpkg.com/next-auth/-/next-auth-3.14.0.tgz#aa6285221bf43298c082286d8c085f9604b8ece1"
   integrity sha512-MXiDXuurmYf437sPkiO8g133UJQffWshjotAmnmj1a9hhRitCCklH7gROC0GJyTatZdkR6Mf4qtrDOkQ5hS/MQ==
