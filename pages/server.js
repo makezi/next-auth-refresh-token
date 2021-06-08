@@ -1,4 +1,4 @@
-import { useSession, getSession } from 'next-auth/client'
+import { useSession, getSession } from '@mtt/next-auth/client'
 import Layout from '../components/layout'
 
 export default function Page () {

@@ -1,5 +1,5 @@
-import NextAuth from "next-auth"
-import Providers from "next-auth/providers"
+import NextAuth from "@mtt/next-auth"
+import Providers from "@mtt/next-auth/providers"
 import axios from 'axios'
 
 async function refreshAccessToken(token) {
@@ -68,7 +68,8 @@ export default NextAuth({
   },
   callbacks: {
     async session(session, token) {
-
+      console.log('session', session);
+      console.log('token', token);
       const updatedSession = {
         ...session,
       }

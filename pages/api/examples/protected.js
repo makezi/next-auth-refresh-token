@@ -1,5 +1,5 @@
 import axios from 'axios';
-import jwt from 'next-auth/jwt';
+import jwt from '@mtt/next-auth/jwt';
 
 async function getAccessToken(req, res) {
   const { accessToken } = await jwt.getToken({

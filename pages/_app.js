@@ -1,4 +1,4 @@
-import { Provider } from 'next-auth/client'
+import { Provider } from '@mtt/next-auth/client'
 import './styles.css'
 
 // Use the <Provider> to improve performance and allow components that call

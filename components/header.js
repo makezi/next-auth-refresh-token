@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { signIn, signOut, useSession } from 'next-auth/client'
+import { signIn, signOut, useSession } from '@mtt/next-auth/client'
 import styles from './header.module.css'
 
 // The approach used in this component shows how to built a sign in and sign out
